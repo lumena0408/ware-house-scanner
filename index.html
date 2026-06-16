@@ -3,599 +3,722 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>입출고 스캐너</title>
+<title>창고 입출고 시스템</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-  body {
-    font-family: 'Segoe UI', Arial, sans-serif;
-    background: #f0f2f5;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 24px 16px;
-  }
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #f0f2f5;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+}
 
-  header {
-    width: 100%;
-    max-width: 520px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 24px;
-  }
+header {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
 
-  header .logo {
-    width: 40px;
-    height: 40px;
-    background: #1a1a2e;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-  }
+.header-left { display: flex; align-items: center; gap: 12px; }
 
-  header h1 {
-    font-size: 20px;
-    font-weight: 700;
-    color: #1a1a2e;
-  }
+.logo {
+  width: 42px; height: 42px;
+  background: #1a1a2e;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
 
-  header span {
-    font-size: 13px;
-    color: #888;
-    margin-top: 2px;
-    display: block;
-  }
+header h1 { font-size: 20px; font-weight: 700; color: #1a1a2e; }
+header span { font-size: 12px; color: #888; display: block; margin-top: 2px; }
 
-  .card {
-    background: white;
-    border-radius: 16px;
-    padding: 28px;
-    width: 100%;
-    max-width: 520px;
-    box-shadow: 0 2px 16px rgba(0,0,0,0.08);
-    margin-bottom: 16px;
-  }
+/* 모드 탭 */
+.mode-tabs {
+  width: 100%; max-width: 560px;
+  display: grid; grid-template-columns: 1fr 1fr;
+  background: white;
+  border-radius: 14px;
+  padding: 6px;
+  gap: 4px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+}
 
-  .section-label {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    color: #888;
-    text-transform: uppercase;
-    margin-bottom: 10px;
-  }
+.mode-tab {
+  padding: 14px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: transparent;
+  color: #aaa;
+}
 
-  /* 바코드 입력 */
-  .barcode-wrap {
-    position: relative;
-  }
+.mode-tab.active-in { background: #16a34a; color: white; }
+.mode-tab.active-out { background: #dc2626; color: white; }
 
-  .barcode-wrap input {
-    width: 100%;
-    padding: 16px 48px 16px 18px;
-    font-size: 17px;
-    font-weight: 600;
-    border: 2px solid #e0e0e0;
-    border-radius: 12px;
-    outline: none;
-    transition: border 0.2s;
-    background: #fafafa;
-    color: #1a1a2e;
-    letter-spacing: 0.02em;
-  }
+/* 카드 */
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  width: 100%; max-width: 560px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  margin-bottom: 12px;
+}
 
-  .barcode-wrap input:focus {
-    border-color: #1a1a2e;
-    background: white;
-  }
+.section-label {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.08em; color: #888;
+  text-transform: uppercase; margin-bottom: 10px;
+}
 
-  .barcode-wrap input.filled {
-    border-color: #22c55e;
-    background: #f0fdf4;
-  }
+/* 입력 필드 */
+.field-input {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 16px; font-weight: 600;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px; outline: none;
+  transition: border 0.2s;
+  background: #fafafa; color: #1a1a2e;
+}
 
-  .barcode-icon {
-    position: absolute;
-    right: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 22px;
-    color: #bbb;
-  }
+.field-input:focus { border-color: #1a1a2e; background: white; }
+.field-input.filled { border-color: #22c55e; background: #f0fdf4; }
+.field-input.scanned { border-color: #3b82f6; background: #eff6ff; }
 
-  .product-badge {
-    margin-top: 10px;
-    padding: 10px 14px;
-    background: #f0fdf4;
-    border-radius: 8px;
-    font-size: 14px;
-    color: #16a34a;
-    font-weight: 600;
-    display: none;
-  }
+/* 버튼 그룹 */
+.btn-group { display: grid; gap: 8px; margin-top: 4px; }
+.btn-group.cols-2 { grid-template-columns: 1fr 1fr; }
+.btn-group.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
 
-  .product-badge.show { display: block; }
+.btn-opt {
+  padding: 13px 10px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px; background: white;
+  font-size: 14px; font-weight: 600;
+  color: #555; cursor: pointer;
+  transition: all 0.15s; text-align: center;
+}
 
-  /* 버튼 그룹 */
-  .btn-group {
-    display: grid;
-    gap: 10px;
-    margin-top: 4px;
-  }
+.btn-opt:hover { border-color: #1a1a2e; color: #1a1a2e; }
+.btn-opt.sel-blue { background: #1a1a2e; border-color: #1a1a2e; color: white; }
+.btn-opt.sel-green { background: #16a34a; border-color: #16a34a; color: white; }
+.btn-opt.sel-purple { background: #7c3aed; border-color: #7c3aed; color: white; }
 
-  .btn-group.cols-2 { grid-template-columns: 1fr 1fr; }
-  .btn-group.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+/* 수량 */
+.qty-wrap { display: flex; align-items: center; gap: 10px; }
 
-  .btn-opt {
-    padding: 14px 10px;
-    border: 2px solid #e0e0e0;
-    border-radius: 12px;
-    background: white;
-    font-size: 15px;
-    font-weight: 600;
-    color: #555;
-    cursor: pointer;
-    transition: all 0.15s;
-    text-align: center;
-  }
+.qty-btn {
+  width: 42px; height: 42px;
+  border: 2px solid #e0e0e0; border-radius: 10px;
+  background: white; font-size: 18px; font-weight: 700;
+  color: #1a1a2e; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; flex-shrink: 0;
+}
 
-  .btn-opt:hover { border-color: #1a1a2e; color: #1a1a2e; }
+.qty-btn:hover { border-color: #1a1a2e; background: #f0f0f0; }
 
-  .btn-opt.selected-blue {
-    background: #1a1a2e;
-    border-color: #1a1a2e;
-    color: white;
-  }
+.qty-input {
+  flex: 1; text-align: center;
+  font-size: 26px; font-weight: 700; color: #1a1a2e;
+  border: 2px solid #e0e0e0; border-radius: 12px;
+  padding: 10px; outline: none;
+}
 
-  .btn-opt.selected-green {
-    background: #16a34a;
-    border-color: #16a34a;
-    color: white;
-  }
+.qty-input:focus { border-color: #1a1a2e; }
 
-  .btn-opt.selected-red {
-    background: #dc2626;
-    border-color: #dc2626;
-    color: white;
-  }
+/* 라벨 미리보기 */
+.label-preview {
+  display: none;
+  border: 2px dashed #e0e0e0;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  background: white;
+}
 
-  .btn-opt.selected-purple {
-    background: #7c3aed;
-    border-color: #7c3aed;
-    color: white;
-  }
+.label-preview.show { display: block; }
 
-  /* 수량 */
-  .qty-wrap {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-top: 4px;
-  }
+.label-inner {
+  width: 280px; margin: 0 auto;
+  border: 1.5px solid #333;
+  padding: 14px 12px 10px;
+  background: white;
+  font-family: 'Courier New', monospace;
+}
 
-  .qty-btn {
-    width: 44px;
-    height: 44px;
-    border: 2px solid #e0e0e0;
-    border-radius: 10px;
-    background: white;
-    font-size: 22px;
-    font-weight: 700;
-    color: #1a1a2e;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s;
-    flex-shrink: 0;
-  }
+.label-inner svg { width: 100%; height: auto; }
 
-  .qty-btn:hover { border-color: #1a1a2e; background: #f0f0f0; }
+.label-text {
+  font-size: 12px; color: #333;
+  text-align: left; margin-top: 10px;
+  line-height: 1.7;
+}
 
-  .qty-input {
-    flex: 1;
-    text-align: center;
-    font-size: 28px;
-    font-weight: 700;
-    color: #1a1a2e;
-    border: 2px solid #e0e0e0;
-    border-radius: 12px;
-    padding: 10px;
-    outline: none;
-  }
+.label-text strong { font-size: 13px; }
 
-  .qty-input:focus { border-color: #1a1a2e; }
+/* 출고 - 스캔 결과 */
+.scan-result {
+  display: none;
+  background: #eff6ff;
+  border: 2px solid #3b82f6;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 10px;
+}
 
-  /* 제출 버튼 */
-  .submit-btn {
-    width: 100%;
-    max-width: 520px;
-    padding: 18px;
-    background: #1a1a2e;
-    color: white;
-    border: none;
-    border-radius: 14px;
-    font-size: 17px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    letter-spacing: 0.02em;
-  }
+.scan-result.show { display: block; }
+.scan-result .product-name { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+.scan-result .product-info { font-size: 13px; color: #555; }
 
-  .submit-btn:hover { background: #2d2d4e; transform: translateY(-1px); }
-  .submit-btn:active { transform: translateY(0); }
-  .submit-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+/* 출고 수량 안내 */
+.qty-hint {
+  font-size: 12px; color: #888; margin-top: 6px; text-align: center;
+}
 
-  /* 토스트 */
-  .toast {
-    position: fixed;
-    bottom: 32px;
-    left: 50%;
-    transform: translateX(-50%) translateY(100px);
-    padding: 14px 24px;
-    border-radius: 12px;
-    font-size: 15px;
-    font-weight: 600;
-    color: white;
-    transition: transform 0.3s ease;
-    z-index: 999;
-    white-space: nowrap;
-  }
+/* 액션 버튼들 */
+.action-btns {
+  width: 100%; max-width: 560px;
+  display: grid; gap: 10px;
+}
 
-  .toast.show { transform: translateX(-50%) translateY(0); }
-  .toast.success { background: #16a34a; }
-  .toast.error { background: #dc2626; }
+.action-btns.cols-2 { grid-template-columns: 1fr 1fr; }
 
-  /* 최근 기록 */
-  .log-list { display: flex; flex-direction: column; gap: 8px; }
+.primary-btn {
+  padding: 17px;
+  border: none; border-radius: 14px;
+  font-size: 16px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+  letter-spacing: 0.02em;
+}
 
-  .log-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    background: #fafafa;
-    border-radius: 10px;
-    font-size: 13px;
-  }
+.btn-print { background: #1a1a2e; color: white; }
+.btn-print:hover { background: #2d2d4e; }
+.btn-save-in { background: #16a34a; color: white; }
+.btn-save-in:hover { background: #15803d; }
+.btn-save-out { background: #dc2626; color: white; }
+.btn-save-out:hover { background: #b91c1c; }
+.btn-full { grid-column: 1 / -1; }
 
-  .log-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
+.primary-btn:disabled { background: #ccc; cursor: not-allowed; }
 
-  .log-dot.in { background: #16a34a; }
-  .log-dot.out { background: #dc2626; }
+/* 최근 기록 */
+.log-list { display: flex; flex-direction: column; gap: 8px; }
 
-  .log-name { font-weight: 600; color: #1a1a2e; flex: 1; }
-  .log-detail { color: #888; font-size: 12px; }
+.log-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  background: #fafafa; border-radius: 10px; font-size: 13px;
+}
 
-  .empty-log {
-    text-align: center;
-    color: #bbb;
-    font-size: 14px;
-    padding: 20px 0;
-  }
+.log-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.log-dot.in { background: #16a34a; }
+.log-dot.out { background: #dc2626; }
+.log-name { font-weight: 600; color: #1a1a2e; flex: 1; }
+.log-detail { color: #888; font-size: 12px; }
+.empty-log { text-align: center; color: #bbb; font-size: 14px; padding: 20px 0; }
 
-  /* API 키 설정 */
-  .api-section {
-    width: 100%;
-    max-width: 520px;
-    margin-bottom: 16px;
-  }
+/* API 설정 */
+.api-bar {
+  width: 100%; max-width: 560px;
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 12px;
+}
 
-  .api-toggle {
-    font-size: 13px;
-    color: #888;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 8px;
-  }
+.api-toggle-btn {
+  font-size: 12px; color: #888; background: none;
+  border: 1.5px solid #e0e0e0; border-radius: 8px;
+  padding: 6px 12px; cursor: pointer;
+  white-space: nowrap;
+}
 
-  .api-input-wrap {
-    display: none;
-    gap: 8px;
-  }
+.api-input {
+  flex: 1; padding: 7px 12px;
+  border: 1.5px solid #e0e0e0; border-radius: 8px;
+  font-size: 12px; outline: none; display: none;
+}
 
-  .api-input-wrap.open { display: flex; }
+.api-input.open { display: block; }
 
-  .api-input {
-    flex: 1;
-    padding: 10px 14px;
-    border: 1.5px solid #e0e0e0;
-    border-radius: 10px;
-    font-size: 13px;
-    outline: none;
-  }
+.api-save { 
+  padding: 7px 14px; background: #1a1a2e; color: white;
+  border: none; border-radius: 8px; font-size: 12px;
+  font-weight: 600; cursor: pointer; display: none;
+  white-space: nowrap;
+}
 
-  .api-input:focus { border-color: #1a1a2e; }
+.api-save.open { display: block; }
 
-  .api-save-btn {
-    padding: 10px 16px;
-    background: #1a1a2e;
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-  }
+/* 토스트 */
+.toast {
+  position: fixed; bottom: 28px; left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  padding: 13px 22px; border-radius: 12px;
+  font-size: 14px; font-weight: 600; color: white;
+  transition: transform 0.3s ease; z-index: 999;
+  white-space: nowrap; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.success { background: #16a34a; }
+.toast.error { background: #dc2626; }
+.toast.info { background: #3b82f6; }
+
+/* 인쇄 스타일 */
+@media print {
+  body > *:not(#print-area) { display: none !important; }
+  #print-area { display: block !important; }
+  .label-inner { border: 1.5px solid #333 !important; page-break-after: always; }
+}
+
+#print-area { display: none; }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">📦</div>
-  <div>
-    <h1>입출고 스캐너</h1>
-    <span>창고 재고 관리 시스템</span>
+  <div class="header-left">
+    <div class="logo">📦</div>
+    <div>
+      <h1>창고 입출고 시스템</h1>
+      <span id="api-status-txt">API 미설정</span>
+    </div>
   </div>
 </header>
 
-<!-- API 키 설정 -->
-<div class="api-section">
-  <div class="api-toggle" onclick="toggleApi()">⚙️ Airtable API 설정 <span id="api-status"></span></div>
-  <div class="api-input-wrap" id="api-wrap">
-    <input class="api-input" id="api-key-input" type="password" placeholder="Airtable API Key (pat...)">
-    <button class="api-save-btn" onclick="saveApiKey()">저장</button>
-  </div>
+<!-- API 설정 -->
+<div class="api-bar">
+  <button class="api-toggle-btn" onclick="toggleApi()">⚙️ API 설정</button>
+  <input class="api-input" id="api-input" type="password" placeholder="Airtable API Key (pat...)">
+  <button class="api-save" id="api-save-btn" onclick="saveApi()">저장</button>
 </div>
 
-<!-- 제품 스캔 -->
-<div class="card">
-  <div class="section-label">① 바코드 스캔</div>
-  <div class="barcode-wrap">
-    <input type="text" id="barcode-input" placeholder="스캐너로 바코드를 찍거나 직접 입력하세요" autocomplete="off">
-    <span class="barcode-icon">▐▌</span>
-  </div>
-  <div class="product-badge" id="product-badge"></div>
+<!-- 모드 탭 -->
+<div class="mode-tabs">
+  <button class="mode-tab active-in" id="tab-in" onclick="setMode('in')">▼ 입고 모드</button>
+  <button class="mode-tab" id="tab-out" onclick="setMode('out')">▲ 출고 모드</button>
 </div>
 
-<!-- 센터 선택 -->
-<div class="card">
-  <div class="section-label">② 센터 선택</div>
-  <div class="btn-group cols-2">
-    <button class="btn-opt" onclick="select('center','1센터',this,'selected-blue')">🏭 명례 1센터</button>
-    <button class="btn-opt" onclick="select('center','2센터',this,'selected-blue')">🏭 명례 2센터</button>
+<!-- ===== 입고 모드 ===== -->
+<div id="mode-in">
+
+  <!-- 제품명 -->
+  <div class="card">
+    <div class="section-label">① 제품명 스캔 또는 입력</div>
+    <input type="text" class="field-input" id="in-product" placeholder="바코드 스캔 또는 직접 입력" autocomplete="off" oninput="onInProductInput()">
   </div>
+
+  <!-- 수량 -->
+  <div class="card">
+    <div class="section-label">② 팔레트 수량</div>
+    <div class="qty-wrap">
+      <button class="qty-btn" onclick="changeQty('in',-10)">－－</button>
+      <button class="qty-btn" onclick="changeQty('in',-1)">－</button>
+      <input class="qty-input" id="in-qty" type="number" value="1" min="1">
+      <button class="qty-btn" onclick="changeQty('in',1)">＋</button>
+      <button class="qty-btn" onclick="changeQty('in',10)">＋＋</button>
+    </div>
+  </div>
+
+  <!-- 센터 -->
+  <div class="card">
+    <div class="section-label">③ 입고 센터</div>
+    <div class="btn-group cols-2">
+      <button class="btn-opt" onclick="selectIn('center','1센터',this,'sel-blue')">🏭 명례 1센터</button>
+      <button class="btn-opt" onclick="selectIn('center','2센터',this,'sel-blue')">🏭 명례 2센터</button>
+    </div>
+  </div>
+
+  <!-- 거래처 -->
+  <div class="card">
+    <div class="section-label">④ 거래처</div>
+    <div class="btn-group cols-2">
+      <button class="btn-opt sel-blue" onclick="selectIn('vendor','일반',this,'sel-blue')">일반</button>
+      <button class="btn-opt" onclick="selectIn('vendor','백화점',this,'sel-purple')">🏬 백화점</button>
+    </div>
+  </div>
+
+  <!-- 라벨 미리보기 -->
+  <div class="card">
+    <div class="section-label">⑤ 라벨 미리보기</div>
+    <div class="label-preview" id="label-preview">
+      <div class="label-inner" id="label-inner">
+        <svg id="barcode-svg"></svg>
+        <div class="label-text" id="label-text"></div>
+      </div>
+    </div>
+    <div style="color:#bbb;font-size:13px;text-align:center;padding:20px 0;" id="label-empty">
+      제품명과 수량을 입력하면 라벨이 생성됩니다
+    </div>
+  </div>
+
+  <!-- 버튼 -->
+  <div class="action-btns cols-2">
+    <button class="primary-btn btn-print" onclick="printLabel()">🖨️ 라벨 출력</button>
+    <button class="primary-btn btn-save-in" id="btn-save-in" onclick="saveIn()">✓ 입고 저장</button>
+  </div>
+
 </div>
 
-<!-- 입출고 선택 -->
-<div class="card">
-  <div class="section-label">③ 입고 / 출고</div>
-  <div class="btn-group cols-2">
-    <button class="btn-opt" onclick="select('type','입고',this,'selected-green')">▼ 입고</button>
-    <button class="btn-opt" onclick="select('type','출고',this,'selected-red')">▲ 출고</button>
-  </div>
-</div>
+<!-- ===== 출고 모드 ===== -->
+<div id="mode-out" style="display:none;">
 
-<!-- 수량 -->
-<div class="card">
-  <div class="section-label">④ 수량</div>
-  <div class="qty-wrap">
-    <button class="qty-btn" onclick="changeQty(-10)">－－</button>
-    <button class="qty-btn" onclick="changeQty(-1)">－</button>
-    <input class="qty-input" id="qty-input" type="number" value="1" min="1">
-    <button class="qty-btn" onclick="changeQty(1)">＋</button>
-    <button class="qty-btn" onclick="changeQty(10)">＋＋</button>
+  <!-- 바코드 스캔 -->
+  <div class="card">
+    <div class="section-label">① 파레트 바코드 스캔</div>
+    <input type="text" class="field-input" id="out-scan" placeholder="바코드를 스캔하세요" autocomplete="off" oninput="onOutScan()">
+    <div class="scan-result" id="scan-result">
+      <div class="product-name" id="scan-product"></div>
+      <div class="product-info" id="scan-info"></div>
+    </div>
   </div>
-</div>
 
-<!-- 거래처 -->
-<div class="card">
-  <div class="section-label">⑤ 거래처 (선택)</div>
-  <div class="btn-group cols-2">
-    <button class="btn-opt selected-blue" onclick="select('vendor','일반',this,'selected-blue')">일반</button>
-    <button class="btn-opt" onclick="select('vendor','백화점',this,'selected-purple')">🏬 백화점</button>
+  <!-- 출고 수량 -->
+  <div class="card">
+    <div class="section-label">② 출고 수량</div>
+    <div class="qty-wrap">
+      <button class="qty-btn" onclick="changeQty('out',-10)">－－</button>
+      <button class="qty-btn" onclick="changeQty('out',-1)">－</button>
+      <input class="qty-input" id="out-qty" type="number" value="1" min="1">
+      <button class="qty-btn" onclick="changeQty('out',1)">＋</button>
+      <button class="qty-btn" onclick="changeQty('out',10)">＋＋</button>
+    </div>
+    <div class="qty-hint" id="qty-hint"></div>
   </div>
-</div>
 
-<!-- 제출 -->
-<button class="submit-btn" id="submit-btn" onclick="submitLog()">기록 저장</button>
+  <!-- 센터 -->
+  <div class="card">
+    <div class="section-label">③ 출고 센터</div>
+    <div class="btn-group cols-2">
+      <button class="btn-opt" onclick="selectOut('center','1센터',this,'sel-blue')">🏭 명례 1센터</button>
+      <button class="btn-opt" onclick="selectOut('center','2센터',this,'sel-blue')">🏭 명례 2센터</button>
+    </div>
+  </div>
+
+  <!-- 거래처 -->
+  <div class="card">
+    <div class="section-label">④ 거래처</div>
+    <div class="btn-group cols-2">
+      <button class="btn-opt sel-blue" onclick="selectOut('vendor','일반',this,'sel-blue')">일반</button>
+      <button class="btn-opt" onclick="selectOut('vendor','백화점',this,'sel-purple')">🏬 백화점</button>
+    </div>
+  </div>
+
+  <!-- 버튼 -->
+  <div class="action-btns">
+    <button class="primary-btn btn-save-out btn-full" id="btn-save-out" onclick="saveOut()">▲ 출고 저장</button>
+  </div>
+
+</div>
 
 <!-- 최근 기록 -->
-<div class="card" style="margin-top:16px;">
-  <div class="section-label" style="margin-bottom:14px;">최근 입출고 기록</div>
+<div class="card" style="margin-top:16px; width:100%; max-width:560px;">
+  <div class="section-label" style="margin-bottom:12px;">최근 기록</div>
   <div class="log-list" id="log-list">
     <div class="empty-log">아직 기록이 없습니다</div>
   </div>
 </div>
 
+<!-- 인쇄용 영역 -->
+<div id="print-area"></div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-  const AIRTABLE_BASE = 'appI9p9qaTeS64Fch';
-  const INVENTORY_TABLE = 'tbluW5E2ndxwCbG9F';
+const BASE = 'appI9p9qaTeS64Fch';
+const TABLE = 'tbluW5E2ndxwCbG9F';
 
-  let state = {
-    product: '',
-    center: '',
-    type: '',
-    vendor: '일반',
-    apiKey: localStorage.getItem('airtable_api_key') || ''
-  };
+let apiKey = localStorage.getItem('at_key') || '';
+let mode = 'in';
+let inState = { product:'', center:'', vendor:'일반' };
+let outState = { product:'', center:'', vendor:'일반' };
+let recentLogs = [];
+let labelTimer = null;
 
-  let recentLogs = [];
+// API 설정
+function toggleApi() {
+  const inp = document.getElementById('api-input');
+  const btn = document.getElementById('api-save-btn');
+  const isOpen = inp.classList.contains('open');
+  inp.classList.toggle('open');
+  btn.classList.toggle('open');
+  if (!isOpen) inp.value = apiKey;
+}
 
-  // API 키 상태 표시
-  function updateApiStatus() {
-    const el = document.getElementById('api-status');
-    el.textContent = state.apiKey ? '✅ 연결됨' : '❌ 미설정';
-    if (state.apiKey) {
-      document.getElementById('api-key-input').value = state.apiKey;
-    }
+function saveApi() {
+  const val = document.getElementById('api-input').value.trim();
+  if (!val) return showToast('API 키를 입력하세요', 'error');
+  apiKey = val;
+  localStorage.setItem('at_key', val);
+  document.getElementById('api-input').classList.remove('open');
+  document.getElementById('api-save-btn').classList.remove('open');
+  updateApiStatus();
+  showToast('API 키 저장됨', 'success');
+}
+
+function updateApiStatus() {
+  document.getElementById('api-status-txt').textContent = apiKey ? '✅ Airtable 연결됨' : '❌ API 미설정';
+}
+
+// 모드 전환
+function setMode(m) {
+  mode = m;
+  document.getElementById('mode-in').style.display = m === 'in' ? 'contents' : 'none';
+  document.getElementById('mode-out').style.display = m === 'out' ? 'contents' : 'none';
+  document.getElementById('tab-in').className = 'mode-tab' + (m === 'in' ? ' active-in' : '');
+  document.getElementById('tab-out').className = 'mode-tab' + (m === 'out' ? ' active-out' : '');
+
+  if (m === 'in') document.getElementById('in-product').focus();
+  else document.getElementById('out-scan').focus();
+}
+
+// 입고 - 제품명 입력
+function onInProductInput() {
+  clearTimeout(labelTimer);
+  const val = document.getElementById('in-product').value.trim();
+  inState.product = val;
+  if (val) {
+    document.getElementById('in-product').classList.add('filled');
+    labelTimer = setTimeout(generateLabel, 400);
+  } else {
+    document.getElementById('in-product').classList.remove('filled');
+    hideLabelPreview();
   }
+}
 
-  function toggleApi() {
-    const wrap = document.getElementById('api-wrap');
-    wrap.classList.toggle('open');
-  }
+// 라벨 생성
+function generateLabel() {
+  const product = inState.product;
+  const qty = parseInt(document.getElementById('in-qty').value) || 1;
+  if (!product) return;
 
-  function saveApiKey() {
-    const key = document.getElementById('api-key-input').value.trim();
-    if (!key) return showToast('API 키를 입력하세요', 'error');
-    state.apiKey = key;
-    localStorage.setItem('airtable_api_key', key);
-    updateApiStatus();
-    document.getElementById('api-wrap').classList.remove('open');
-    showToast('API 키 저장됨', 'success');
-  }
+  const today = new Date().toLocaleDateString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\. /g,'-').replace('.','');
 
-  // 바코드 입력 처리
-  const barcodeInput = document.getElementById('barcode-input');
-  let inputTimer;
-
-  barcodeInput.addEventListener('input', () => {
-    clearTimeout(inputTimer);
-    inputTimer = setTimeout(() => {
-      const val = barcodeInput.value.trim();
-      if (val) {
-        state.product = val;
-        barcodeInput.classList.add('filled');
-        const badge = document.getElementById('product-badge');
-        badge.textContent = '✓ ' + val;
-        badge.classList.add('show');
-        // 다음 단계로 포커스 이동 없이 대기
-      } else {
-        state.product = '';
-        barcodeInput.classList.remove('filled');
-        document.getElementById('product-badge').classList.remove('show');
-      }
-    }, 300);
-  });
-
-  // 옵션 선택
-  function select(key, value, el, colorClass) {
-    state[key] = value;
-    const group = el.parentElement;
-    group.querySelectorAll('.btn-opt').forEach(b => {
-      b.className = 'btn-opt';
+  try {
+    JsBarcode('#barcode-svg', product, {
+      format: 'CODE128',
+      width: 2,
+      height: 60,
+      displayValue: false,
+      margin: 4
     });
-    el.classList.add(colorClass);
+  } catch(e) {
+    showToast('바코드 생성 오류: 특수문자 확인', 'error');
+    return;
   }
 
-  // 수량 조절
-  function changeQty(delta) {
-    const input = document.getElementById('qty-input');
-    const newVal = Math.max(1, (parseInt(input.value) || 0) + delta);
-    input.value = newVal;
-  }
+  document.getElementById('label-text').innerHTML = `
+    <strong>${product}</strong><br>
+    수량: ${qty}개<br>
+    센터: ${inState.center || '미선택'}<br>
+    거래처: ${inState.vendor}<br>
+    일자: ${today}
+  `;
 
-  // 초기화
-  function resetForm() {
-    barcodeInput.value = '';
-    barcodeInput.classList.remove('filled');
-    document.getElementById('product-badge').classList.remove('show');
-    document.getElementById('qty-input').value = 1;
-    state.product = '';
-    state.center = '';
-    state.type = '';
-    state.vendor = '일반';
+  document.getElementById('label-preview').classList.add('show');
+  document.getElementById('label-empty').style.display = 'none';
+}
 
-    // 버튼 초기화
-    document.querySelectorAll('.btn-opt').forEach(b => b.className = 'btn-opt');
-    // 거래처 일반 기본 선택
-    document.querySelector('[onclick*="일반"]').classList.add('selected-blue');
+function hideLabelPreview() {
+  document.getElementById('label-preview').classList.remove('show');
+  document.getElementById('label-empty').style.display = 'block';
+}
 
-    barcodeInput.focus();
-  }
-
-  // Airtable 저장
-  async function submitLog() {
-    if (!state.product) return showToast('제품을 스캔하거나 입력하세요', 'error');
-    if (!state.center) return showToast('센터를 선택하세요', 'error');
-    if (!state.type) return showToast('입고/출고를 선택하세요', 'error');
-    if (!state.apiKey) return showToast('API 키를 먼저 설정하세요', 'error');
-
-    const qty = parseInt(document.getElementById('qty-input').value) || 1;
-    const btn = document.getElementById('submit-btn');
-    btn.disabled = true;
-    btn.textContent = '저장 중...';
-
-    const now = new Date().toISOString();
-
-    try {
-      const res = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE}/${INVENTORY_TABLE}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${state.apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          records: [{
-            fields: {
-              '제품명': state.product,
-              '센터': state.center,
-              '입출고 구분': state.type,
-              '수량': qty,
-              '타임스탬프': now,
-              '거래처': state.vendor
-            }
-          }]
-        })
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error?.message || '저장 실패');
-      }
-
-      // 최근 기록 추가
-      recentLogs.unshift({
-        product: state.product,
-        center: state.center,
-        type: state.type,
-        qty: qty,
-        vendor: state.vendor,
-        time: new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'})
-      });
-      if (recentLogs.length > 5) recentLogs.pop();
-      renderLogs();
-
-      showToast(`✓ ${state.product} ${state.type} ${qty}개 저장됨`, 'success');
-      resetForm();
-
-    } catch (e) {
-      showToast('오류: ' + e.message, 'error');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = '기록 저장';
-    }
-  }
-
-  function renderLogs() {
-    const list = document.getElementById('log-list');
-    if (recentLogs.length === 0) {
-      list.innerHTML = '<div class="empty-log">아직 기록이 없습니다</div>';
+// 출고 - 스캔
+let scanTimer;
+function onOutScan() {
+  clearTimeout(scanTimer);
+  scanTimer = setTimeout(() => {
+    const val = document.getElementById('out-scan').value.trim();
+    if (!val) {
+      document.getElementById('scan-result').classList.remove('show');
       return;
     }
-    list.innerHTML = recentLogs.map(log => `
-      <div class="log-item">
-        <div class="log-dot ${log.type === '입고' ? 'in' : 'out'}"></div>
-        <div class="log-name">${log.product}</div>
-        <div class="log-detail">${log.center} · ${log.type} ${log.qty}개 · ${log.time}${log.vendor !== '일반' ? ' · ' + log.vendor : ''}</div>
-      </div>
-    `).join('');
-  }
+    outState.product = val;
+    document.getElementById('out-scan').classList.add('scanned');
+    document.getElementById('scan-product').textContent = val;
+    document.getElementById('scan-info').textContent = '제품 확인됨 — 출고 수량을 입력하세요';
+    document.getElementById('scan-result').classList.add('show');
+    document.getElementById('out-qty').focus();
+  }, 300);
+}
 
-  function showToast(msg, type) {
-    const toast = document.getElementById('toast');
-    toast.textContent = msg;
-    toast.className = `toast ${type} show`;
-    setTimeout(() => toast.classList.remove('show'), 3000);
-  }
+// 선택
+function selectIn(key, val, el, cls) {
+  inState[key] = val;
+  el.parentElement.querySelectorAll('.btn-opt').forEach(b => b.className = 'btn-opt');
+  el.classList.add(cls);
+  if (inState.product) generateLabel();
+}
 
-  // 초기화
-  updateApiStatus();
-  barcodeInput.focus();
+function selectOut(key, val, el, cls) {
+  outState[key] = val;
+  el.parentElement.querySelectorAll('.btn-opt').forEach(b => b.className = 'btn-opt');
+  el.classList.add(cls);
+}
+
+// 수량 조절
+function changeQty(mode, delta) {
+  const id = mode === 'in' ? 'in-qty' : 'out-qty';
+  const inp = document.getElementById(id);
+  inp.value = Math.max(1, (parseInt(inp.value) || 0) + delta);
+  if (mode === 'in' && inState.product) generateLabel();
+}
+
+// 라벨 출력
+function printLabel() {
+  if (!inState.product) return showToast('제품명을 입력하세요', 'error');
+  const inner = document.getElementById('label-inner').innerHTML;
+  const printArea = document.getElementById('print-area');
+  printArea.innerHTML = `<div class="label-inner">${inner}</div>`;
+  window.print();
+}
+
+// 입고 저장
+async function saveIn() {
+  if (!inState.product) return showToast('제품명을 입력하세요', 'error');
+  if (!inState.center) return showToast('센터를 선택하세요', 'error');
+  if (!apiKey) return showToast('API 키를 설정하세요', 'error');
+
+  const qty = parseInt(document.getElementById('in-qty').value) || 1;
+  const btn = document.getElementById('btn-save-in');
+  btn.disabled = true; btn.textContent = '저장 중...';
+
+  try {
+    await postToAirtable({
+      '제품명': inState.product,
+      '센터': inState.center,
+      '입출고 구분': '입고',
+      '수량': qty,
+      '타임스탬프': new Date().toISOString(),
+      '거래처': inState.vendor
+    });
+
+    addLog({ product: inState.product, center: inState.center, type: '입고', qty, vendor: inState.vendor });
+    showToast(`✓ ${inState.product} 입고 ${qty}개 저장됨`, 'success');
+    resetIn();
+  } catch(e) {
+    showToast('오류: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '✓ 입고 저장';
+  }
+}
+
+// 출고 저장
+async function saveOut() {
+  if (!outState.product) return showToast('바코드를 스캔하세요', 'error');
+  if (!outState.center) return showToast('센터를 선택하세요', 'error');
+  if (!apiKey) return showToast('API 키를 설정하세요', 'error');
+
+  const qty = parseInt(document.getElementById('out-qty').value) || 1;
+  const btn = document.getElementById('btn-save-out');
+  btn.disabled = true; btn.textContent = '저장 중...';
+
+  try {
+    await postToAirtable({
+      '제품명': outState.product,
+      '센터': outState.center,
+      '입출고 구분': '출고',
+      '수량': qty,
+      '타임스탬프': new Date().toISOString(),
+      '거래처': outState.vendor
+    });
+
+    addLog({ product: outState.product, center: outState.center, type: '출고', qty, vendor: outState.vendor });
+    showToast(`✓ ${outState.product} 출고 ${qty}개 저장됨`, 'success');
+    resetOut();
+  } catch(e) {
+    showToast('오류: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '▲ 출고 저장';
+  }
+}
+
+// Airtable API 호출
+async function postToAirtable(fields) {
+  const res = await fetch(`https://api.airtable.com/v0/${BASE}/${TABLE}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ records: [{ fields }] })
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error?.message || '저장 실패');
+  }
+  return res.json();
+}
+
+// 초기화
+function resetIn() {
+  document.getElementById('in-product').value = '';
+  document.getElementById('in-product').classList.remove('filled');
+  document.getElementById('in-qty').value = 1;
+  inState = { product:'', center:'', vendor:'일반' };
+  document.querySelectorAll('#mode-in .btn-opt').forEach(b => b.className = 'btn-opt');
+  document.querySelector('#mode-in [onclick*="일반"]').classList.add('sel-blue');
+  hideLabelPreview();
+  document.getElementById('in-product').focus();
+}
+
+function resetOut() {
+  document.getElementById('out-scan').value = '';
+  document.getElementById('out-scan').classList.remove('scanned');
+  document.getElementById('out-qty').value = 1;
+  document.getElementById('scan-result').classList.remove('show');
+  document.getElementById('qty-hint').textContent = '';
+  outState = { product:'', center:'', vendor:'일반' };
+  document.querySelectorAll('#mode-out .btn-opt').forEach(b => b.className = 'btn-opt');
+  document.querySelector('#mode-out [onclick*="일반"]').classList.add('sel-blue');
+  document.getElementById('out-scan').focus();
+}
+
+// 최근 기록
+function addLog(log) {
+  recentLogs.unshift({ ...log, time: new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'}) });
+  if (recentLogs.length > 6) recentLogs.pop();
+  renderLogs();
+}
+
+function renderLogs() {
+  const list = document.getElementById('log-list');
+  if (!recentLogs.length) {
+    list.innerHTML = '<div class="empty-log">아직 기록이 없습니다</div>';
+    return;
+  }
+  list.innerHTML = recentLogs.map(l => `
+    <div class="log-item">
+      <div class="log-dot ${l.type === '입고' ? 'in' : 'out'}"></div>
+      <div class="log-name">${l.product}</div>
+      <div class="log-detail">${l.center} · ${l.type} ${l.qty}개 · ${l.time}${l.vendor !== '일반' ? ' · '+l.vendor : ''}</div>
+    </div>
+  `).join('');
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// 초기화
+updateApiStatus();
+document.getElementById('in-product').focus();
 </script>
 </body>
 </html>
