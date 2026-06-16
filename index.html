@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>입출고 스캐너</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px;
+  }
+
+  header {
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  header .logo {
+    width: 40px;
+    height: 40px;
+    background: #1a1a2e;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+
+  header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a1a2e;
+  }
+
+  header span {
+    font-size: 13px;
+    color: #888;
+    margin-top: 2px;
+    display: block;
+  }
+
+  .card {
+    background: white;
+    border-radius: 16px;
+    padding: 28px;
+    width: 100%;
+    max-width: 520px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+    margin-bottom: 16px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #888;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  /* 바코드 입력 */
+  .barcode-wrap {
+    position: relative;
+  }
+
+  .barcode-wrap input {
+    width: 100%;
+    padding: 16px 48px 16px 18px;
+    font-size: 17px;
+    font-weight: 600;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    outline: none;
+    transition: border 0.2s;
+    background: #fafafa;
+    color: #1a1a2e;
+    letter-spacing: 0.02em;
+  }
+
+  .barcode-wrap input:focus {
+    border-color: #1a1a2e;
+    background: white;
+  }
+
+  .barcode-wrap input.filled {
+    border-color: #22c55e;
+    background: #f0fdf4;
+  }
+
+  .barcode-icon {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 22px;
+    color: #bbb;
+  }
+
+  .product-badge {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: #f0fdf4;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #16a34a;
+    font-weight: 600;
+    display: none;
+  }
+
+  .product-badge.show { display: block; }
+
+  /* 버튼 그룹 */
+  .btn-group {
+    display: grid;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  .btn-group.cols-2 { grid-template-columns: 1fr 1fr; }
+  .btn-group.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  .btn-opt {
+    padding: 14px 10px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    background: white;
+    font-size: 15px;
+    font-weight: 600;
+    color: #555;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+
+  .btn-opt:hover { border-color: #1a1a2e; color: #1a1a2e; }
+
+  .btn-opt.selected-blue {
+    background: #1a1a2e;
+    border-color: #1a1a2e;
+    color: white;
+  }
+
+  .btn-opt.selected-green {
+    background: #16a34a;
+    border-color: #16a34a;
+    color: white;
+  }
+
+  .btn-opt.selected-red {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: white;
+  }
+
+  .btn-opt.selected-purple {
+    background: #7c3aed;
+    border-color: #7c3aed;
+    color: white;
+  }
+
+  /* 수량 */
+  .qty-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 4px;
+  }
+
+  .qty-btn {
+    width: 44px;
+    height: 44px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    background: white;
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a2e;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .qty-btn:hover { border-color: #1a1a2e; background: #f0f0f0; }
+
+  .qty-input {
+    flex: 1;
+    text-align: center;
+    font-size: 28px;
+    font-weight: 700;
+    color: #1a1a2e;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 10px;
+    outline: none;
+  }
+
+  .qty-input:focus { border-color: #1a1a2e; }
+
+  /* 제출 버튼 */
+  .submit-btn {
+    width: 100%;
+    max-width: 520px;
+    padding: 18px;
+    background: #1a1a2e;
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+  }
+
+  .submit-btn:hover { background: #2d2d4e; transform: translateY(-1px); }
+  .submit-btn:active { transform: translateY(0); }
+  .submit-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+
+  /* 토스트 */
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    color: white;
+    transition: transform 0.3s ease;
+    z-index: 999;
+    white-space: nowrap;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { background: #16a34a; }
+  .toast.error { background: #dc2626; }
+
+  /* 최근 기록 */
+  .log-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .log-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: #fafafa;
+    border-radius: 10px;
+    font-size: 13px;
+  }
+
+  .log-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .log-dot.in { background: #16a34a; }
+  .log-dot.out { background: #dc2626; }
+
+  .log-name { font-weight: 600; color: #1a1a2e; flex: 1; }
+  .log-detail { color: #888; font-size: 12px; }
+
+  .empty-log {
+    text-align: center;
+    color: #bbb;
+    font-size: 14px;
+    padding: 20px 0;
+  }
+
+  /* API 키 설정 */
+  .api-section {
+    width: 100%;
+    max-width: 520px;
+    margin-bottom: 16px;
+  }
+
+  .api-toggle {
+    font-size: 13px;
+    color: #888;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .api-input-wrap {
+    display: none;
+    gap: 8px;
+  }
+
+  .api-input-wrap.open { display: flex; }
+
+  .api-input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .api-input:focus { border-color: #1a1a2e; }
+
+  .api-save-btn {
+    padding: 10px 16px;
+    background: #1a1a2e;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">📦</div>
+  <div>
+    <h1>입출고 스캐너</h1>
+    <span>창고 재고 관리 시스템</span>
+  </div>
+</header>
+
+<!-- API 키 설정 -->
+<div class="api-section">
+  <div class="api-toggle" onclick="toggleApi()">⚙️ Airtable API 설정 <span id="api-status"></span></div>
+  <div class="api-input-wrap" id="api-wrap">
+    <input class="api-input" id="api-key-input" type="password" placeholder="Airtable API Key (pat...)">
+    <button class="api-save-btn" onclick="saveApiKey()">저장</button>
+  </div>
+</div>
+
+<!-- 제품 스캔 -->
+<div class="card">
+  <div class="section-label">① 바코드 스캔</div>
+  <div class="barcode-wrap">
+    <input type="text" id="barcode-input" placeholder="스캐너로 바코드를 찍거나 직접 입력하세요" autocomplete="off">
+    <span class="barcode-icon">▐▌</span>
+  </div>
+  <div class="product-badge" id="product-badge"></div>
+</div>
+
+<!-- 센터 선택 -->
+<div class="card">
+  <div class="section-label">② 센터 선택</div>
+  <div class="btn-group cols-2">
+    <button class="btn-opt" onclick="select('center','1센터',this,'selected-blue')">🏭 명례 1센터</button>
+    <button class="btn-opt" onclick="select('center','2센터',this,'selected-blue')">🏭 명례 2센터</button>
+  </div>
+</div>
+
+<!-- 입출고 선택 -->
+<div class="card">
+  <div class="section-label">③ 입고 / 출고</div>
+  <div class="btn-group cols-2">
+    <button class="btn-opt" onclick="select('type','입고',this,'selected-green')">▼ 입고</button>
+    <button class="btn-opt" onclick="select('type','출고',this,'selected-red')">▲ 출고</button>
+  </div>
+</div>
+
+<!-- 수량 -->
+<div class="card">
+  <div class="section-label">④ 수량</div>
+  <div class="qty-wrap">
+    <button class="qty-btn" onclick="changeQty(-10)">－－</button>
+    <button class="qty-btn" onclick="changeQty(-1)">－</button>
+    <input class="qty-input" id="qty-input" type="number" value="1" min="1">
+    <button class="qty-btn" onclick="changeQty(1)">＋</button>
+    <button class="qty-btn" onclick="changeQty(10)">＋＋</button>
+  </div>
+</div>
+
+<!-- 거래처 -->
+<div class="card">
+  <div class="section-label">⑤ 거래처 (선택)</div>
+  <div class="btn-group cols-2">
+    <button class="btn-opt selected-blue" onclick="select('vendor','일반',this,'selected-blue')">일반</button>
+    <button class="btn-opt" onclick="select('vendor','백화점',this,'selected-purple')">🏬 백화점</button>
+  </div>
+</div>
+
+<!-- 제출 -->
+<button class="submit-btn" id="submit-btn" onclick="submitLog()">기록 저장</button>
+
+<!-- 최근 기록 -->
+<div class="card" style="margin-top:16px;">
+  <div class="section-label" style="margin-bottom:14px;">최근 입출고 기록</div>
+  <div class="log-list" id="log-list">
+    <div class="empty-log">아직 기록이 없습니다</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const AIRTABLE_BASE = 'appI9p9qaTeS64Fch';
+  const INVENTORY_TABLE = 'tbluW5E2ndxwCbG9F';
+
+  let state = {
+    product: '',
+    center: '',
+    type: '',
+    vendor: '일반',
+    apiKey: localStorage.getItem('airtable_api_key') || ''
+  };
+
+  let recentLogs = [];
+
+  // API 키 상태 표시
+  function updateApiStatus() {
+    const el = document.getElementById('api-status');
+    el.textContent = state.apiKey ? '✅ 연결됨' : '❌ 미설정';
+    if (state.apiKey) {
+      document.getElementById('api-key-input').value = state.apiKey;
+    }
+  }
+
+  function toggleApi() {
+    const wrap = document.getElementById('api-wrap');
+    wrap.classList.toggle('open');
+  }
+
+  function saveApiKey() {
+    const key = document.getElementById('api-key-input').value.trim();
+    if (!key) return showToast('API 키를 입력하세요', 'error');
+    state.apiKey = key;
+    localStorage.setItem('airtable_api_key', key);
+    updateApiStatus();
+    document.getElementById('api-wrap').classList.remove('open');
+    showToast('API 키 저장됨', 'success');
+  }
+
+  // 바코드 입력 처리
+  const barcodeInput = document.getElementById('barcode-input');
+  let inputTimer;
+
+  barcodeInput.addEventListener('input', () => {
+    clearTimeout(inputTimer);
+    inputTimer = setTimeout(() => {
+      const val = barcodeInput.value.trim();
+      if (val) {
+        state.product = val;
+        barcodeInput.classList.add('filled');
+        const badge = document.getElementById('product-badge');
+        badge.textContent = '✓ ' + val;
+        badge.classList.add('show');
+        // 다음 단계로 포커스 이동 없이 대기
+      } else {
+        state.product = '';
+        barcodeInput.classList.remove('filled');
+        document.getElementById('product-badge').classList.remove('show');
+      }
+    }, 300);
+  });
+
+  // 옵션 선택
+  function select(key, value, el, colorClass) {
+    state[key] = value;
+    const group = el.parentElement;
+    group.querySelectorAll('.btn-opt').forEach(b => {
+      b.className = 'btn-opt';
+    });
+    el.classList.add(colorClass);
+  }
+
+  // 수량 조절
+  function changeQty(delta) {
+    const input = document.getElementById('qty-input');
+    const newVal = Math.max(1, (parseInt(input.value) || 0) + delta);
+    input.value = newVal;
+  }
+
+  // 초기화
+  function resetForm() {
+    barcodeInput.value = '';
+    barcodeInput.classList.remove('filled');
+    document.getElementById('product-badge').classList.remove('show');
+    document.getElementById('qty-input').value = 1;
+    state.product = '';
+    state.center = '';
+    state.type = '';
+    state.vendor = '일반';
+
+    // 버튼 초기화
+    document.querySelectorAll('.btn-opt').forEach(b => b.className = 'btn-opt');
+    // 거래처 일반 기본 선택
+    document.querySelector('[onclick*="일반"]').classList.add('selected-blue');
+
+    barcodeInput.focus();
+  }
+
+  // Airtable 저장
+  async function submitLog() {
+    if (!state.product) return showToast('제품을 스캔하거나 입력하세요', 'error');
+    if (!state.center) return showToast('센터를 선택하세요', 'error');
+    if (!state.type) return showToast('입고/출고를 선택하세요', 'error');
+    if (!state.apiKey) return showToast('API 키를 먼저 설정하세요', 'error');
+
+    const qty = parseInt(document.getElementById('qty-input').value) || 1;
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.textContent = '저장 중...';
+
+    const now = new Date().toISOString();
+
+    try {
+      const res = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE}/${INVENTORY_TABLE}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${state.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          records: [{
+            fields: {
+              '제품명': state.product,
+              '센터': state.center,
+              '입출고 구분': state.type,
+              '수량': qty,
+              '타임스탬프': now,
+              '거래처': state.vendor
+            }
+          }]
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || '저장 실패');
+      }
+
+      // 최근 기록 추가
+      recentLogs.unshift({
+        product: state.product,
+        center: state.center,
+        type: state.type,
+        qty: qty,
+        vendor: state.vendor,
+        time: new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'})
+      });
+      if (recentLogs.length > 5) recentLogs.pop();
+      renderLogs();
+
+      showToast(`✓ ${state.product} ${state.type} ${qty}개 저장됨`, 'success');
+      resetForm();
+
+    } catch (e) {
+      showToast('오류: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '기록 저장';
+    }
+  }
+
+  function renderLogs() {
+    const list = document.getElementById('log-list');
+    if (recentLogs.length === 0) {
+      list.innerHTML = '<div class="empty-log">아직 기록이 없습니다</div>';
+      return;
+    }
+    list.innerHTML = recentLogs.map(log => `
+      <div class="log-item">
+        <div class="log-dot ${log.type === '입고' ? 'in' : 'out'}"></div>
+        <div class="log-name">${log.product}</div>
+        <div class="log-detail">${log.center} · ${log.type} ${log.qty}개 · ${log.time}${log.vendor !== '일반' ? ' · ' + log.vendor : ''}</div>
+      </div>
+    `).join('');
+  }
+
+  function showToast(msg, type) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = `toast ${type} show`;
+    setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  // 초기화
+  updateApiStatus();
+  barcodeInput.focus();
+</script>
+</body>
+</html>
