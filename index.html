@@ -440,6 +440,7 @@ header span { font-size: 12px; color: #888; display: block; margin-top: 2px; }
 <script>
 const BASE = 'appI9p9qaTeS64Fch';
 const TABLE = 'tbluW5E2ndxwCbG9F';
+const PRODUCTS_TABLE = 'tblaiG19ORzcPuQJG';
 
 let apiKey = localStorage.getItem('at_key') || '';
 let mode = 'in';
@@ -647,8 +648,31 @@ async function saveOut() {
   }
 }
 
+// Products 테이블에서 제품명으로 레코드 ID 검색
+async function findProductId(productName) {
+  const encoded = encodeURIComponent(`{제품명} = "${productName}"`);
+  const res = await fetch(
+    `https://api.airtable.com/v0/${BASE}/${PRODUCTS_TABLE}?filterByFormula=${encoded}&maxRecords=1`,
+    { headers: { 'Authorization': `Bearer ${apiKey}` } }
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (data.records && data.records.length > 0) {
+    return data.records[0].id;
+  }
+  return null;
+}
+
 // Airtable API 호출
 async function postToAirtable(fields) {
+  // Products 링크 자동 연결
+  const productId = await findProductId(fields['제품명']);
+  if (productId) {
+    fields['Products'] = [productId];
+  } else {
+    showToast('⚠️ Products에 없는 제품 — 링크 미연결', 'info');
+  }
+
   const res = await fetch(`https://api.airtable.com/v0/${BASE}/${TABLE}`, {
     method: 'POST',
     headers: {
